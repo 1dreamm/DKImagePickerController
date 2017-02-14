@@ -228,7 +228,7 @@ open class DKImagePickerController : UINavigationController {
         self.preferredContentSize = CGSize(width: 680, height: 600)
         
         rootVC.navigationItem.hidesBackButton = true
-        
+
         getImageManager().groupDataManager.assetGroupTypes = self.assetGroupTypes
         getImageManager().groupDataManager.assetFetchOptions = self.createAssetFetchOptions()
         getImageManager().groupDataManager.showsEmptyAlbums = self.showsEmptyAlbums
@@ -242,6 +242,9 @@ open class DKImagePickerController : UINavigationController {
     
     override open func viewDidLoad() {
         super.viewDidLoad()
+
+        self.navigationBar.tintColor = UIColor.white
+        self.navigationBar.isTranslucent = false
     }
     
     private var hasInitialized = false

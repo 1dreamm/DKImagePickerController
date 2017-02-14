@@ -31,7 +31,7 @@ internal class DKAssetGroupDetailVC: UIViewController, UICollectionViewDelegate,
         let button = UIButton()
 		
 		let globalTitleColor = UINavigationBar.appearance().titleTextAttributes?[NSForegroundColorAttributeName] as? UIColor
-		button.setTitleColor(globalTitleColor ?? UIColor.black, for: .normal)
+		button.setTitleColor(globalTitleColor ?? UIColor.white, for: .normal)
 		
 		let globalTitleFont = UINavigationBar.appearance().titleTextAttributes?[NSFontAttributeName] as? UIFont
 		button.titleLabel!.font = globalTitleFont ?? UIFont.boldSystemFont(ofSize: 18.0)
