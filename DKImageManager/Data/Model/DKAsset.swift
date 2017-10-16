@@ -27,6 +27,9 @@ open class DKAsset: NSObject {
 	/// When the asset was an image, it's false. Otherwise true.
 	open private(set) var isVideo: Bool = false
 	
+    /// Returns location, if its contained in original asser
+    open private(set) var location: CLLocation?
+    
 	/// play time duration(seconds) of a video.
 	open private(set) var duration: Double?
 	
@@ -36,6 +39,7 @@ open class DKAsset: NSObject {
 		
 	public init(originalAsset: PHAsset) {
         self.localIdentifier = originalAsset.localIdentifier
+        self.location = originalAsset.location
 		super.init()
 		
 		self.originalAsset = originalAsset
@@ -47,7 +51,7 @@ open class DKAsset: NSObject {
 		}
 	}
 	
-	private var image: UIImage?
+	internal var image: UIImage?
 	internal init(image: UIImage) {
         self.localIdentifier = String(image.hash)
 		super.init()
@@ -120,17 +124,21 @@ open class DKAsset: NSObject {
      - parameter completeBlock: The block is executed when the image download is complete.
 	*/
 	public func fetchOriginalImage(_ sync: Bool, completeBlock: @escaping (_ image: UIImage?, _ info: [AnyHashable: Any]?) -> Void) {
-		let options = PHImageRequestOptions()
-		options.version = .current
-		options.isSynchronous = sync
-		
-		getImageManager().fetchImageDataForAsset(self, options: options, completeBlock: { (data, info) in
-            var image: UIImage?
-            if let data = data {
-    			image = UIImage(data: data)
-            }
-			completeBlock(image, info)
-		})
+        if let _ = self.originalAsset {
+            let options = PHImageRequestOptions()
+            options.version = .current
+            options.isSynchronous = sync
+            
+            getImageManager().fetchImageDataForAsset(self, options: options, completeBlock: { (data, info) in
+                var image: UIImage?
+                if let data = data {
+                    image = UIImage(data: data)
+                }
+                completeBlock(image, info)
+            })
+        } else {
+            completeBlock(self.image, nil)
+        }
 	}
     
     /**
@@ -197,32 +205,38 @@ public extension DKAsset {
      Writes the image in the receiver to the file specified by a given path.
      */
 	public func writeImageToFile(_ path: String, completeBlock: @escaping (_ success: Bool) -> Void) {
-		let options = PHImageRequestOptions()
-		options.version = .current
-		
-		getImageManager().fetchImageDataForAsset(self, options: options, completeBlock: { (data, _) in
-			DKAssetWriter.writeQueue.addOperation({
-				if let imageData = data {
-					try? imageData.write(to: URL(fileURLWithPath: path), options: [.atomic])
-					completeBlock(true)
-				} else {
-					completeBlock(false)
-				}
-			})
-		})
+        if let _ = self.originalAsset {
+            let options = PHImageRequestOptions()
+            options.version = .current
+            
+            getImageManager().fetchImageDataForAsset(self, options: options, completeBlock: { (data, _) in
+                DKAssetWriter.writeQueue.addOperation({
+                    if let imageData = data {
+                        try? imageData.write(to: URL(fileURLWithPath: path), options: [.atomic])
+                        completeBlock(true)
+                    } else {
+                        completeBlock(false)
+                    }
+                })
+            })
+        } else {
+            try! UIImageJPEGRepresentation(self.image!, 1)!.write(to: URL(fileURLWithPath: path))
+            completeBlock(true)
+        }
 	}
 	
     /**
      Writes the AV in the receiver to the file specified by a given path.
      
-     - parameter presetName:    An NSString specifying the name of the preset template for the export. See AVAssetExportPresetXXX.
+     - parameter presetName:        An NSString specifying the name of the preset template for the export. See AVAssetExportPresetXXX.
+     - parameter outputFileType:    Type of file to export. Should be a valid media type, otherwise export will fail. See AVFileType.
      */
-	public func writeAVToFile(_ path: String, presetName: String, completeBlock: @escaping (_ success: Bool) -> Void) {
+    public func writeAVToFile(_ path: String, presetName: String, outputFileType: String = AVFileTypeQuickTimeMovie, completeBlock: @escaping (_ success: Bool) -> Void) {
 		self.fetchAVAsset(nil) { (avAsset, _) in
             DKAssetWriter.writeQueue.addOperation({
                 if let avAsset = avAsset,
                     let exportSession = AVAssetExportSession(asset: avAsset, presetName: presetName) {
-                    exportSession.outputFileType = AVFileTypeQuickTimeMovie
+                    exportSession.outputFileType = outputFileType
                     exportSession.outputURL = URL(fileURLWithPath: path)
                     exportSession.shouldOptimizeForNetworkUse = true
                     exportSession.exportAsynchronously(completionHandler: {
